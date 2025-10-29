@@ -44,8 +44,3 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
-
-
-@app.get("/healthz")
-async def healthcheck() -> dict[str, str]:
-    return {"status": "ok"}

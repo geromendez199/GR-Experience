@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from starlette import status
 
 from .. import schemas
 from ..deps import get_parquet_store
