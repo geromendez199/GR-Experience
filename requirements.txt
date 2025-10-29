@@ -1,1 +1,9 @@
 -r backend/requirements.txt
+types-pandas
+types-pyarrow
+types-requests
+types-redis
+types-setuptools
+types-attrs
+types-joblib
+types-scikit-learn
