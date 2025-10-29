@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import zipfile
+from binascii import crc32
 from pathlib import Path
 
 import structlog
@@ -20,7 +21,7 @@ def _verify_zip_integrity(zip_path: Path) -> None:
             # ZipFile will raise a BadZipFile on CRC mismatch when read. We proactively check.
             with zf.open(info.filename) as member:
                 data = member.read()
-            computed = zipfile.crc32(data) & 0xFFFFFFFF
+            computed = crc32(data) & 0xFFFFFFFF
             if computed != info.CRC:
                 raise ValueError(
                     f"CRC mismatch for {info.filename}: expected {info.CRC}, got {computed}"

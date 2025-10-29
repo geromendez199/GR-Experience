@@ -22,7 +22,7 @@ jobs:
       - name: Ruff
         run: ruff check backend/app
       - name: Mypy
-        run: mypy backend/app
+        run: mypy backend/app --install-types --non-interactive
       - name: Pytest
         run: pytest backend -q
 
