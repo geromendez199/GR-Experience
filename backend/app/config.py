@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return a cached instance of :class:`Settings`."""
 
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.model_dir.mkdir(parents=True, exist_ok=True)
     return settings

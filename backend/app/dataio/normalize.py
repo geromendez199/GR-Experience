@@ -86,6 +86,18 @@ def _normalize_timestamp(df: pd.DataFrame) -> pd.DataFrame:
     # Prefer ECU timestamp column over derived lap times when available.
     if "t_ms" in df:
         return df
+    if "timestamp_ms" in df.columns:
+        ts = pd.to_numeric(df["timestamp_ms"], errors="coerce")
+        if ts.notna().any():
+            df["t_ms"] = ts.round().astype("Int64")
+            df = df.drop(columns=["timestamp_ms"])
+            return df
+    if "time_ms" in df.columns:
+        ts = pd.to_numeric(df["time_ms"], errors="coerce")
+        if ts.notna().any():
+            df["t_ms"] = ts.round().astype("Int64")
+            df = df.drop(columns=["time_ms"])
+            return df
     if "timestamp" in df.columns:
         ts = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
         if ts.notna().any():
@@ -101,13 +113,34 @@ def _normalize_timestamp(df: pd.DataFrame) -> pd.DataFrame:
     elif "lap_time_s" in df.columns:
         df["t_ms"] = (df["lap_time_s"].cumsum() * 1000).round().astype("Int64")
     else:
-        raise NormalizationError("Unable to derive timestamp column")
+        # Some of our sample telemetry sets do not expose any timestamp information.
+        # When that happens, synthesize a monotonic timeline based on surrogate
+        # columns so downstream processing can continue.
+        if "index" in df.columns:
+            index_values = pd.to_numeric(df["index"], errors="coerce")
+            if index_values.notna().any():
+                df["t_ms"] = (index_values.fillna(method="ffill").fillna(0) * 1000).round().astype(
+                    "Int64"
+                )
+                return df
+        if "lap" in df.columns:
+            laps = pd.to_numeric(df["lap"], errors="coerce").fillna(method="ffill").fillna(0)
+            positions = df.groupby(laps).cumcount()
+            df["t_ms"] = (
+                (laps.astype(int) * 60_000) + (positions * 1000)
+            ).astype("Int64")
+            return df
+        synthetic = pd.Series(pd.RangeIndex(len(df)), index=df.index)
+        df["t_ms"] = (synthetic * 1000).astype("Int64")
     return df
 
 
 def _coerce_columns(df: pd.DataFrame) -> pd.DataFrame:
     rename_map = {col: COLUMN_ALIASES.get(col, col) for col in df.columns}
+    had_lap_time_ms = "lap_time_ms" in df.columns and rename_map.get("lap_time_ms") == "lap_time_s"
     df = df.rename(columns=rename_map)
+    if had_lap_time_ms and "lap_time_s" in df.columns:
+        df["lap_time_s"] = pd.to_numeric(df["lap_time_s"], errors="coerce") / 1000.0
     for column in CANONICAL_COLUMNS:
         if column not in df.columns:
             df[column] = pd.NA
@@ -120,7 +153,7 @@ def _clean_types(df: pd.DataFrame) -> pd.DataFrame:
     df["car_id"] = df["car_id"].astype(str)
     df["lap"] = df["lap"].astype("Int64")
     df["sector"] = df["sector"].astype("Int64")
-    df["t_ms"] = df["t_ms"].astype("Int64")
+    df["t_ms"] = pd.to_numeric(df["t_ms"], errors="coerce").astype(float)
     df["lap_time_s"] = df["lap_time_s"].astype(float)
     for col in ["speed_kph", "throttle", "brake", "track_temp_c", "air_temp_c"]:
         df[col] = df[col].astype(float)
