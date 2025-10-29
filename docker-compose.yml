@@ -1,27 +1,40 @@
-version: "3.9"
+version: '3.9'
 
 services:
-  backend:
+  redis:
+    image: redis:7.2-alpine
+    container_name: gr-experience-redis
+    ports:
+      - '6379:6379'
+  api:
     build:
       context: ./backend
-    ports:
-      - "8000:8000"
+    container_name: gr-experience-api
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379/0
+      - CORS_ORIGINS=http://localhost:3000
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
     volumes:
       - ./backend:/app
-    environment:
-      - UVICORN_RELOAD=true
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-
-  frontend:
+      - ./data:/data
+    ports:
+      - '8000:8000'
+    depends_on:
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  web:
     build:
       context: ./frontend
-    ports:
-      - "3000:3000"
+    container_name: gr-experience-web
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://backend:8000/api
-    depends_on:
-      - backend
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-    command: ["npm", "run", "dev"]
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+    command: npm run dev

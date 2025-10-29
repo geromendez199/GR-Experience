@@ -1,70 +1,134 @@
 # GR-Experience
 
-Repositorio para el proyecto GR Experience del Hack the Track 2025
+GR-Experience is a full-stack telemetry analytics platform for the Toyota GR Cup. It ingests raw timing archives, normalises and stores telemetry to columnar Parquet datasets, models tyre degradation and lap performance, and exposes insights via a FastAPI backend and a Next.js dashboard.
 
-## Arquitectura
+## Features
 
-```
-GR-Experience/
-├── backend/              # API FastAPI y lógica de analítica
-├── data/                 # Scripts de ingesta y normalización de datasets
-├── frontend/             # Aplicación Next.js + Three.js
-├── docker-compose.yml    # Orquestación de frontend y backend
-└── requirements.txt      # Dependencias Python para desarrollo y pruebas
-```
+- **Data ingestion pipeline**: ZIP extraction with checksum validation, schema normalisation and Parquet persistence partitioned by `session_id/track`.
+- **Machine learning models**: RandomForest baseline for lap prediction, linear tyre degradation regression and Dynamic Time Warping comparisons for driver coaching.
+- **API + WebSocket**: Typed FastAPI endpoints for ingestion, telemetry pagination, strategy simulation, training comparisons and live telemetry streaming.
+- **Interactive frontend**: React Query powered dashboards with Plotly charts, strategic recommendations and a Three.js 3D replay.
+- **Tooling**: pytest + React Testing Library coverage, Ruff/Mypy linting, GitHub Actions CI and Docker Compose sandbox.
 
-### Backend (FastAPI)
+## Getting started
 
-- Endpoints REST bajo `/api` para métricas agregadas, comparativas de vueltas y recomendaciones de estrategia.
-- WebSocket `/ws/live-telemetry` para transmitir frames de telemetría en tiempo real (modo eco por defecto).
-- Servicios en `backend/app/services` que simulan la lógica de negocio con datos en memoria listos para reemplazar por la canalización real.
+### Requirements
 
-#### Ejecutar backend en local
+- Python 3.11
+- Node.js 20
+- Redis (only required when running the API with caching)
+
+### Environment variables
+
+Copy `.env.example` to `.env` and adjust if required:
 
 ```bash
+cp .env.example .env
+```
+
+### Installing dependencies
+
+```bash
+# Backend
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn backend.app.main:app --reload
-```
+pip install -r backend/requirements.txt
 
-La API estará disponible en `http://localhost:8000` y la documentación interactiva en `http://localhost:8000/docs`.
-
-### Frontend (Next.js + TypeScript + Three.js)
-
-- Dashboard interactivo que consume el endpoint de analítica y muestra un gráfico SVG con los tiempos de vuelta.
-- Página `/replay` que renderiza una escena 3D simple con `@react-three/fiber` y controles orbitales.
-
-#### Ejecutar frontend en local
-
-```bash
+# Frontend
 cd frontend
 npm install
-npm run dev
 ```
 
-La aplicación se servirá en `http://localhost:3000`.
+### Running the stack
 
-### Ingesta de datos
-
-`data/scripts/download_datasets.py` contiene utilidades para descargar y extraer datasets comprimidos. Incluye pruebas unitarias en `data/tests/` para validar la extracción ZIP/TAR y la limpieza de directorios.
-
-### Docker Compose
-
-Levanta ambos servicios con recarga automática:
+Local development with Docker Compose:
 
 ```bash
-docker-compose up --build
+make dev
 ```
 
-El frontend se conectará al backend mediante `NEXT_PUBLIC_API_BASE_URL` definido en `docker-compose.yml`.
-
-### Pruebas
-
-Ejecuta la suite con:
+Manual terminals:
 
 ```bash
-pytest
+# API
+make api
+
+# Frontend
+make web
 ```
 
-Actualmente se cubren los módulos de analítica del backend y utilidades de ingestión de datos.
+### Ingesting telemetry archives
+
+Archives must live under `DATA_DIR` (default `./data`). The CLI orchestrates extraction, normalisation and persistence:
+
+```bash
+python scripts/prepare_sample_archive.py --data-dir ./data
+make ingest ZIP=./data/input/barber-motorsports-park.zip SESSION=grcup_barber_2025
+```
+
+The API also exposes `POST /api/sessions/{session_id}/ingest` for remote pipelines.
+
+### Tests & Quality
+
+```bash
+# Backend tests + linters
+make test
+make lint
+
+# Frontend only
+cd frontend
+npm run test
+npm run build
+```
+
+Continuous Integration runs the same suite in `.github/workflows/ci.yml`.
+
+## Project layout
+
+```
+backend/
+  app/
+    config.py          # Pydantic settings
+    main.py            # FastAPI application
+    dataio/            # Extraction, normalisation and Parquet store
+    models/            # Feature engineering, ML baselines & strategy engine
+    routes/            # REST + WebSocket routers
+  tests/               # pytest integration & unit tests
+frontend/
+  src/
+    pages/             # Next.js pages (sessions, training, replay)
+    components/        # Layout, charts, strategy & telemetry widgets
+    lib/               # API helpers & React Query client
+    types/             # Shared API typings
+```
+
+## Demo dataset
+
+Sample telemetry ships as CSV under `data/samples/barber-motorsports-park.csv`. Generate an archive with `python scripts/prepare_sample_archive.py --data-dir ./data` before running `make ingest` to explore the dashboards at `http://localhost:3000`.
+
+## Scripts
+
+- `backend/app/cli.py`: command line utilities (currently ingestion).
+- `scripts/prepare_sample_archive.py`: build ZIP archives from the sample CSVs.
+- `scripts/demo_seed.py`: populate a demo session for the web UI.
+
+## Docker images
+
+- `api`: FastAPI backend served by Uvicorn.
+- `web`: Next.js dev server.
+- `redis`: caching layer for telemetry summaries & lap pagination.
+
+## CI/CD
+
+GitHub Actions run linting, mypy, pytest, Jest and Next.js builds on every push/PR. Ensure the suite is green before opening a pull request.
+
+## Contributing
+
+Install pre-commit hooks locally:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+This enforces Ruff formatting and mypy checks before every commit.
