@@ -1,0 +1,26 @@
+:root {
+  --bg: #0c0c0f;
+  --text: #f0f3f7;
+  --accent: #ff4d4f;
+  --muted: #6c7a89;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+main {
+  padding: 2rem;
+}

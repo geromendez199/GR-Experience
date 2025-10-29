@@ -1,27 +1,51 @@
-"""Entry point for the FastAPI application."""
+"""FastAPI application entry-point."""
 from __future__ import annotations
 
-from fastapi import FastAPI, WebSocket
+import logging
 
-from .api.routes import router as api_router
+import structlog
+from structlog.stdlib import BoundLogger, LoggerFactory
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 
-app = FastAPI(title="GR Experience API", version="0.1.0")
-app.include_router(api_router, prefix="/api")
+from .config import get_settings
+from .routes import api_router
 
 
-@app.websocket("/ws/live-telemetry")
-async def websocket_endpoint(websocket: WebSocket) -> None:
-    """Minimal WebSocket endpoint used for streaming telemetry frames.
+def configure_logging() -> None:
+    logging.basicConfig(level=logging.INFO)
+    structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.JSONRenderer(),
+        ],
+        logger_factory=LoggerFactory(),
+        wrapper_class=BoundLogger,
+    )
 
-    The implementation currently performs a simple echo to demonstrate the
-    integration between the backend and the frontend. Real telemetry
-    broadcasting can be plugged into this function later.
-    """
 
-    await websocket.accept()
-    try:
-        while True:
-            message = await websocket.receive_text()
-            await websocket.send_json({"type": "echo", "payload": message})
-    except Exception:
-        await websocket.close()
+settings = get_settings()
+configure_logging()
+
+app = FastAPI(
+    title="GR-Experience API",
+    version="0.1.0",
+    default_response_class=ORJSONResponse,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
+
+app.include_router(api_router)
+
+
+@app.get("/healthz")
+async def healthcheck() -> dict[str, str]:
+    return {"status": "ok"}
