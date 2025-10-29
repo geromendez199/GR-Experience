@@ -12,61 +12,76 @@ GR-Experience is a full-stack telemetry analytics platform for the Toyota GR Cup
 
 ## Getting started
 
-### Requirements
+The following quickstart walks through the exact steps required to spin up the
+platform locally. Each item expands on the high-level checklist in the project
+board.
 
-- Python 3.11
-- Node.js 20
-- Redis (only required when running the API with caching)
+1. **Install prerequisites**
+   - Verify Python and Node.js meet the required versions:
 
-### Environment variables
+     ```bash
+     python --version  # expected 3.11.x
+     node --version    # expected v20.x
+     ```
 
-Copy `.env.example` to `.env` and adjust if required:
+   - Install Redis if you plan to enable the API cache (the development stack
+     starts a Redis container automatically, but a local binary is handy for
+     manual runs).
 
-```bash
-cp .env.example .env
-```
+2. **Clone the repository**
 
-### Installing dependencies
+   ```bash
+   git clone https://github.com/geromendez199/GR-Experience.git
+   cd GR-Experience
+   ```
 
-```bash
-# Backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+3. **Copy environment variables**
 
-# Frontend
-cd frontend
-npm install
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-### Running the stack
+4. **Install dependencies**
+   - Backend:
 
-Local development with Docker Compose:
+     ```bash
+     python -m venv .venv
+     source .venv/bin/activate
+     pip install -r backend/requirements.txt
+     ```
 
-```bash
-make dev
-```
+   - Frontend:
 
-Manual terminals:
+     ```bash
+     cd frontend
+     npm install
+     cd ..
+     ```
 
-```bash
-# API
-make api
+5. **Run the stack in development mode**
 
-# Frontend
-make web
-```
+   ```bash
+   make dev
+   ```
 
-### Ingesting telemetry archives
+   This targets the same `api`, `web`, and `redis` services as the Docker
+   Compose configuration for parity with CI.
 
-Archives must live under `DATA_DIR` (default `./data`). The CLI orchestrates extraction, normalisation and persistence:
+6. **Verify the API and dashboard**
+   - Open <http://localhost:8000/docs> to browse the FastAPI-generated schema
+     and try live requests.
+   - Navigate to <http://localhost:3000> to interact with the Next.js dashboard.
 
-```bash
-python scripts/prepare_sample_archive.py --data-dir ./data
-make ingest ZIP=./data/input/barber-motorsports-park.zip SESSION=grcup_barber_2025
-```
+7. **Ingest sample telemetry (optional)**
 
-The API also exposes `POST /api/sessions/{session_id}/ingest` for remote pipelines.
+   ```bash
+   python scripts/prepare_sample_archive.py --data-dir ./data
+   make ingest ZIP=./data/input/barber-motorsports-park.zip SESSION=grcup_barber_2025
+   ```
+
+   After ingestion completes, the session appears on the dashboard with lap and
+   strategy visualisations. The API also exposes
+   `POST /api/sessions/{session_id}/ingest` for remote pipelines.
 
 ### Tests & Quality
 
