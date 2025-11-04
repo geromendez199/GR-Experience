@@ -24,6 +24,14 @@ board.
      node --version    # expected v20.x
      ```
 
+     > If `node --version` prints v21 or newer (Windows often bundles a newer
+     > build), install Node 20 using your version manager before continuing.
+     > Examples:
+     >
+     > - **macOS/Linux**: `nvm install 20 && nvm use 20`
+     > - **Windows**: `nvm install 20.12.2 && nvm use 20.12.2` (from
+     >   [nvm-windows](https://github.com/coreybutler/nvm-windows))
+
    - Install Redis if you plan to enable the API cache (the development stack
      starts a Redis container automatically, but a local binary is handy for
      manual runs).
@@ -46,7 +54,7 @@ board.
 
      ```bash
      python -m venv .venv
-     source .venv/bin/activate
+     source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate.ps1
      pip install -r backend/requirements.txt
      ```
 
@@ -96,10 +104,25 @@ and the virtual environment is activated.
 
 1. **Backend (FastAPI + Uvicorn)**
 
-   ```bash
-   export $(grep -v '^#' .env | xargs)  # load environment variables
-   uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
+   - **macOS/Linux**
+
+     ```bash
+     export $(grep -v '^#' .env | xargs)  # load environment variables
+     uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+     ```
+
+   - **Windows (PowerShell)**
+
+     ```powershell
+     Get-Content .env | ForEach-Object {
+       if ($_ -match '^(?<key>[^#=]+)=(?<value>.*)$') {
+         $name = $Matches['key']
+         $value = $Matches['value']
+         [System.Environment]::SetEnvironmentVariable($name, $value)
+       }
+     }
+     uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+     ```
 
    The `--reload` flag enables hot reloading so code edits immediately refresh
    the API server.
@@ -111,9 +134,11 @@ and the virtual environment is activated.
    npm run dev -- --hostname 0.0.0.0 --port 3000
    ```
 
-   Use a second terminal so both servers continue running. VS Code users can
-   take advantage of the "Run Task" panel to launch the scripts in split
-   terminals.
+   If you are following along in VS Code, run the backend and frontend from two
+   integrated terminals so both remain active. On Windows make sure these
+   commands execute inside the Developer PowerShell (or Git Bash) that already
+   sourced the virtual environment; invoking `npm exec` directly will not start
+   the dashboard.
 
 With both commands running, revisit <http://localhost:8000/docs> and
 <http://localhost:3000> to validate the stack end-to-end.
