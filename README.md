@@ -67,6 +67,10 @@ board.
    This targets the same `api`, `web`, and `redis` services as the Docker
    Compose configuration for parity with CI.
 
+   > **Tip for Visual Studio Code users**: open the workspace folder in VS
+   > Code and run `make dev` from the integrated terminal so both services log
+   > inline next to your editor.
+
 6. **Verify the API and dashboard**
    - Open <http://localhost:8000/docs> to browse the FastAPI-generated schema
      and try live requests.
@@ -82,6 +86,37 @@ board.
    After ingestion completes, the session appears on the dashboard with lap and
    strategy visualisations. The API also exposes
    `POST /api/sessions/{session_id}/ingest` for remote pipelines.
+
+### Manual service startup (without `make`)
+
+If you prefer to run the backend and frontend individually—whether to debug in
+VS Code, to work around a limited shell environment, or to control logging—you
+can start each service with the commands below once dependencies are installed
+and the virtual environment is activated.
+
+1. **Backend (FastAPI + Uvicorn)**
+
+   ```bash
+   export $(grep -v '^#' .env | xargs)  # load environment variables
+   uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+   The `--reload` flag enables hot reloading so code edits immediately refresh
+   the API server.
+
+2. **Frontend (Next.js)**
+
+   ```bash
+   cd frontend
+   npm run dev -- --hostname 0.0.0.0 --port 3000
+   ```
+
+   Use a second terminal so both servers continue running. VS Code users can
+   take advantage of the "Run Task" panel to launch the scripts in split
+   terminals.
+
+With both commands running, revisit <http://localhost:8000/docs> and
+<http://localhost:3000> to validate the stack end-to-end.
 
 ### Tests & Quality
 
