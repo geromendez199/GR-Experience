@@ -12,61 +12,136 @@ GR-Experience is a full-stack telemetry analytics platform for the Toyota GR Cup
 
 ## Getting started
 
-### Requirements
+The following quickstart walks through the exact steps required to spin up the
+platform locally. Each item expands on the high-level checklist in the project
+board.
 
-- Python 3.11
-- Node.js 20
-- Redis (only required when running the API with caching)
+1. **Install prerequisites**
+   - Verify Python and Node.js meet the required versions:
 
-### Environment variables
+     ```bash
+     python --version  # expected 3.11.x
+     node --version    # expected v20.x
+     ```
 
-Copy `.env.example` to `.env` and adjust if required:
+     > If `node --version` prints v21 or newer (Windows often bundles a newer
+     > build), install Node 20 using your version manager before continuing.
+     > Examples:
+     >
+     > - **macOS/Linux**: `nvm install 20 && nvm use 20`
+     > - **Windows**: `nvm install 20.12.2 && nvm use 20.12.2` (from
+     >   [nvm-windows](https://github.com/coreybutler/nvm-windows))
 
-```bash
-cp .env.example .env
-```
+   - Install Redis if you plan to enable the API cache (the development stack
+     starts a Redis container automatically, but a local binary is handy for
+     manual runs).
 
-### Installing dependencies
+2. **Clone the repository**
 
-```bash
-# Backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+   ```bash
+   git clone https://github.com/geromendez199/GR-Experience.git
+   cd GR-Experience
+   ```
 
-# Frontend
-cd frontend
-npm install
-```
+3. **Copy environment variables**
 
-### Running the stack
+   ```bash
+   cp .env.example .env
+   ```
 
-Local development with Docker Compose:
+4. **Install dependencies**
+   - Backend:
 
-```bash
-make dev
-```
+     ```bash
+     python -m venv .venv
+     source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate.ps1
+     pip install -r backend/requirements.txt
+     ```
 
-Manual terminals:
+   - Frontend:
 
-```bash
-# API
-make api
+     ```bash
+     cd frontend
+     npm install
+     cd ..
+     ```
 
-# Frontend
-make web
-```
+5. **Run the stack in development mode**
 
-### Ingesting telemetry archives
+   ```bash
+   make dev
+   ```
 
-Archives must live under `DATA_DIR` (default `./data`). The CLI orchestrates extraction, normalisation and persistence:
+   This targets the same `api`, `web`, and `redis` services as the Docker
+   Compose configuration for parity with CI.
 
-```bash
-python scripts/prepare_sample_archive.py --data-dir ./data
-make ingest ZIP=./data/input/barber-motorsports-park.zip SESSION=grcup_barber_2025
-```
+   > **Tip for Visual Studio Code users**: open the workspace folder in VS
+   > Code and run `make dev` from the integrated terminal so both services log
+   > inline next to your editor.
 
-The API also exposes `POST /api/sessions/{session_id}/ingest` for remote pipelines.
+6. **Verify the API and dashboard**
+   - Open <http://localhost:8000/docs> to browse the FastAPI-generated schema
+     and try live requests.
+   - Navigate to <http://localhost:3000> to interact with the Next.js dashboard.
+
+7. **Ingest sample telemetry (optional)**
+
+   ```bash
+   python scripts/prepare_sample_archive.py --data-dir ./data
+   make ingest ZIP=./data/input/barber-motorsports-park.zip SESSION=grcup_barber_2025
+   ```
+
+   After ingestion completes, the session appears on the dashboard with lap and
+   strategy visualisations. The API also exposes
+   `POST /api/sessions/{session_id}/ingest` for remote pipelines.
+
+### Manual service startup (without `make`)
+
+If you prefer to run the backend and frontend individually—whether to debug in
+VS Code, to work around a limited shell environment, or to control logging—you
+can start each service with the commands below once dependencies are installed
+and the virtual environment is activated.
+
+1. **Backend (FastAPI + Uvicorn)**
+
+   - **macOS/Linux**
+
+     ```bash
+     export $(grep -v '^#' .env | xargs)  # load environment variables
+     uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+     ```
+
+   - **Windows (PowerShell)**
+
+     ```powershell
+     Get-Content .env | ForEach-Object {
+       if ($_ -match '^(?<key>[^#=]+)=(?<value>.*)$') {
+         $name = $Matches['key']
+         $value = $Matches['value']
+         [System.Environment]::SetEnvironmentVariable($name, $value)
+       }
+     }
+     uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+     ```
+
+   The `--reload` flag enables hot reloading so code edits immediately refresh
+   the API server.
+
+2. **Frontend (Next.js)**
+
+   ```bash
+   cd frontend
+   npm run dev -- --hostname 0.0.0.0 --port 3000
+   ```
+
+   If you are following along in VS Code, run the backend and frontend from two
+   integrated terminals so both remain active. On Windows make sure these
+   commands execute inside the Developer PowerShell (or Git Bash) that already
+   sourced the virtual environment; invoking `npm exec` directly will not start
+   the dashboard.
+
+With both commands running, revisit <http://localhost:8000/docs> and
+<http://localhost:3000> to validate the stack end-to-end.
 
 ### Tests & Quality
 
